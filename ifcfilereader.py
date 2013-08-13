@@ -67,9 +67,9 @@ class IfcFile:
         
         schema_attributes = self.schema.getAttributes(ent_name)
 
-        assert len(schema_attributes) == len(parts), \
-            "Expected %s attributes, got %s (entity: %s" % \
-            (len(schema_attributes), len(parts), ent_name)
+#        assert len(schema_attributes) == len(parts), \
+#            "Expected %s attributes, got %s (entity: %s" % \
+#            (len(schema_attributes), len(parts), ent_name)
         
         attribute_names = [a[0] for a in schema_attributes]
         
