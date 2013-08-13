@@ -83,5 +83,5 @@ class IfcSchema:
         
 
 if __name__ == "__main__":
-    schema = IfcSchema("IFC2X3_TC1.exp")
+    schema = IfcSchema("IFC4.exp")
 
