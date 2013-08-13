@@ -55,7 +55,7 @@ class IfcSchema:
 
             attrs_str = min([inner_str.partition("\r\n "+a)[0] for a in self.NO_ATTR])
             attrs = []
-            for am in re.finditer("(.*?) : (.*?);", attrs_str, re.DOTALL):
+            for am in re.finditer("(\S*?) : (.*?);", attrs_str, re.DOTALL):
                 name, attr_type = [s.replace("\r\n\t","") for s in am.groups()]
                 attrs.append((name, attr_type))
             
