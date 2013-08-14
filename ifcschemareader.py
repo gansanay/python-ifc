@@ -1,32 +1,139 @@
 import re, copy
+import time
 
 class IfcSchema:
     SIMPLETYPES = ["INTEGER", "REAL", "STRING", "NUMBER", "LOGICAL", "BOOLEAN"]
-    NO_ATTR = ["WHERE", "INVERSE","WR2","WR3", "WR4", "WR5", "UNIQUE", "DERIVE"]
+    NO_ATTR = ["WHERE", "INVERSE", "WR2", "WR3", "WR4", "WR5", "UNIQUE", "DERIVE"]
 
     def __init__(self, filename):
         self.filename = filename
         self.file = open(self.filename)
         self.data = self.file.read()
-        self.types = self.readTypes()
+        self.types = {}
+        
+        self.simpletypes = self.readSimpleTypes()
+        self.types.update( self.simpletypes )
+        
+        self.aggregatedsimpletypes = self.readAggregatedSimpleTypes()
+        self.types.update( self.aggregatedsimpletypes )
+        
+        self.enumtypes = self.readEnumTypes()
+        self.types.update( self.enumtypes )
+        
+        self.selecttypes = self.readSelectTypes()
+        self.types.update( self.selecttypes )
+        
+        self.definedtypes = self.readDefinedTypes()
+        self.types.update( self.definedtypes )
+        
+        self.othertypes = self.readOtherTypes()
+        self.types.update( self.othertypes )
+        
         self.entities = self.readEntities()
-        print "Parsed from schema %s: %s entities and %s types" % (self.filename, len(self.entities), len(self.types))
+        
+        print "Parsed from schema %s: %s entities and %s types" % \
+(self.filename, len(self.entities), len(self.types))
 
-    def readTypes(self):
+        self.file.close()
+
+    def readSimpleTypes(self):
         """
-        Parse all the possible types from the schema, 
-        returns a dictionary Name -> Type
+        Parse all the possible Simple Types from the schema, 
+        returns a dictionary Type Name -> Simple Type
         """
         types = {}
         for m in re.finditer("TYPE (.*) = (.*);", self.data):
             typename, typetype = m.groups() 
             if typetype in self.SIMPLETYPES:
                 types[typename] = typetype
-            else:
-                types[typename] = "#" + typetype
                 
         return types
         
+    def readAggregatedSimpleTypes(self):
+        """
+        Parse all the possible Aggregated Simple Types from the schema, 
+        returns a dictionary Type Name -> String for aggregated type
+        """
+        types = {}
+        # SETs
+        for m in re.finditer("TYPE (\w*) = SET (.*);", self.data):
+            typename, typetype = m.groups() 
+            types[typename] = 'SET ' + typetype
+        
+        # BAGs
+        for m in re.finditer("TYPE (\w*) = BAG (.*);", self.data):
+            typename, typetype = m.groups() 
+            types[typename] = 'BAG ' + typetype
+        
+        # LISTs
+        for m in re.finditer("TYPE (\w*) = LIST (.*);", self.data):
+            typename, typetype = m.groups() 
+            types[typename] = 'LIST ' + typetype
+        
+        # ARRAYs
+        for m in re.finditer("TYPE (\w*) = ARRAY (.*);", self.data):
+            typename, typetype = m.groups() 
+            types[typename] = 'ARRAY ' + typetype
+            
+        # STRING vectors
+        for m in re.finditer("TYPE (\w*) = STRING\((.*);", self.data):
+            typename, typetype = m.groups() 
+            types[typename] = 'STRING(' + typetype
+                
+        return types       
+        
+    def readDefinedTypes(self):
+        """
+        Parse all the possible Defined Types from the schema, 
+        returns a dictionary Type Name -> Defined Type
+        """
+        types = {}
+        for m in re.finditer("TYPE (.*) = (.*);", self.data):
+            typename, typetype = m.groups() 
+            if typetype in self.types.keys():
+                types[typename] = typetype
+                
+        return types  
+        
+    def readEnumTypes(self):
+        """
+        Parse all the possible Enumeration Types from the schema, 
+        returns a dictionary Type Name -> List of values
+        """
+        types = {}
+        for m in re.finditer("TYPE (\w*) = ENUMERATION OF\s*\(([\,\w\_\s]*)\);\s*END_TYPE;", self.data, re.DOTALL):
+            typename, types_enum_string = m.groups() 
+            typestring = re.sub('\s', '', types_enum_string)
+            types[typename] = typestring.split(',')
+                
+        return types       
+
+    def readSelectTypes(self):
+        """
+        Parse all the possible Select Types from the schema, 
+        returns a dictionary Select Type Name -> List of Type Names
+        """
+        types = {}
+        for m in re.finditer("TYPE (\w*) = SELECT\s*\(([\,\w\_\s]*)\);\s*END_TYPE;", self.data, re.DOTALL):
+            typename, types_select_string = m.groups() 
+            typestring = re.sub('\s', '', types_select_string)
+            types[typename] = typestring.split(',')
+                
+        return types         
+
+    def readOtherTypes(self):
+        """
+        Parse all possible types from the schema and keep unrecognized ones, 
+        returns a dictionary Type Name -> String
+        """
+        types = {}
+        for m in re.finditer("TYPE (\w*) = (.*);", self.data):
+            typename, type_string = m.groups() 
+            if typename not in self.types.keys():
+                types[typename] = type_string
+                
+        return types
+
     def readEntities(self):
         """
         Parse all the possible entities from the schema,
@@ -83,5 +190,41 @@ class IfcSchema:
         
 
 if __name__ == "__main__":
+    t1 = time.time()
+    schema = IfcSchema("IFC2X3_TC1.exp")
+    t2 = time.time()
+    print "Loading IFC2x3 TC1 schema took: %s s" % ((t2-t1))
+    print "Parsed from IFC2x3 TC1 schema: %s entities and %s types \
+[%s Simple Types, %s Aggregated Simple Types, %s Enumeration Types, %s Select Types, %s Defined Types, %s Other unrecognized types]" % \
+(len(schema.entities), len(schema.types), \
+len(schema.simpletypes), len(schema.aggregatedsimpletypes), len(schema.enumtypes), len(schema.selecttypes), len(schema.definedtypes), len(schema.othertypes))
+    print "buildingSMART groups simple types, aggregated simple types \
+and defined types under Defined Types, which makes %s Entities, %s Defined Types, %s \
+Enumerations and %s Selects. There should be 653 Entities, 117 Defined Types, 164 \
+Enumeration Types and 46 Select Types in the IFC2x3 TC1 schema.\n" % \
+    (len(schema.entities),len(schema.simpletypes)+len(schema.aggregatedsimpletypes)+ \
+    len(schema.definedtypes),len(schema.enumtypes),len(schema.selecttypes))
+    assert len(schema.simpletypes)+len(schema.aggregatedsimpletypes)+ \
+    len(schema.definedtypes) == 117
+    assert len(schema.enumtypes) == 164
+    assert len(schema.selecttypes) == 46
+    assert len(schema.entities) == 653
+    
+    t1 = time.time()
     schema = IfcSchema("IFC4.exp")
-
+    t2 = time.time()
+    print "Loading IFC4 schema took: %s s" % ((t2-t1))
+    print "Parsed from IFC4 schema: %s entities and %s types \
+[%s Simple Types, %s Aggregated Simple Types, %s Enumeration Types, %s Select Types, %s Defined Types, %s Other unrecognized types]" % \
+(len(schema.entities), len(schema.types), \
+len(schema.simpletypes), len(schema.aggregatedsimpletypes), len(schema.enumtypes), len(schema.selecttypes), len(schema.definedtypes), len(schema.othertypes))
+    print "buildingSMART groups simple types, aggregated simple types \
+and defined types under Defined Types, which makes %s Entities, %s Defined Types, %s \
+Enumerations and %s Selects. There should be 126 Defined Types, 206 \
+Enumeration Types and 59 Select Types in the IFC4 schema." % \
+    (len(schema.entities),len(schema.simpletypes)+len(schema.aggregatedsimpletypes)+len(schema.definedtypes),len(schema.enumtypes),len(schema.selecttypes)) 
+    assert len(schema.simpletypes)+len(schema.aggregatedsimpletypes)+ \
+    len(schema.definedtypes) == 126
+    assert len(schema.enumtypes) == 206
+    assert len(schema.selecttypes) == 59
+    assert len(schema.entities) == 766
