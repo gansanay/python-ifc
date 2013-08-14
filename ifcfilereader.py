@@ -18,6 +18,7 @@ class IfcFile:
         self.file = open(self.filename)
         self.entById, self.entsByName = self.read()
         print "Parsed from file %s: %s entities" % (self.filename, len(self.entById))
+        self.file.close()
     
     def getEntityById(self, id):
         return self.entById.get(id, None)
