@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import re, copy
 import time
 
@@ -152,13 +154,43 @@ class IfcSchema:
             raw_entity_str = m.groups()[0]
 
             entity["name"] = re.search("(.*?)[;|\s]", raw_entity_str).groups()[0].upper()
+            
+            is_supertype = re.search("SUPERTYPE", raw_entity_str) != None
+            if is_supertype:
+                supertypeofmatch = re.search(".*SUPERTYPE OF \((.*?)\)", raw_entity_str)
+                is_abstract_supertype = re.search("ABSTRACT SUPERTYPE", raw_entity_str) != None
+            
+            is_subtype = re.search("SUBTYPE", raw_entity_str) != None
 
-            subtypeofmatch = re.search(".*SUBTYPE OF \((.*?)\);", raw_entity_str)
-            entity["supertype"] = subtypeofmatch.groups()[0].upper() if subtypeofmatch else None
+            if is_supertype and is_subtype:
+                if is_abstract_supertype:
+                    # abstract supertype of ... subtype of ... ;
+                    match = re.search(".*ABSTRACT SUPERTYPE OF\s+\((.*?)\)\s+SUBTYPE OF\s+\((.*?)\);", raw_entity_str, re.DOTALL)
+                    entity["isabstract"] = True
+                    supertypeof,subtypeof = match.groups()
+                    entity["supertype"] = subtypeof.upper()
+                    supertypeof = re.sub('\s', '', supertypeof)
+                    supertypeofmatch = re.search(".*\((.*?)\)", supertypeof, re.DOTALL)
+                    subtypes = supertypeofmatch.groups()[0].upper().split(',')
+                    entity["subtypes"] = subtypes
+                else:
+                    # supertype of ... subtype of ... ;
+                    match = re.search(".*SUPERTYPE OF\s+\((.*?)\)\s+SUBTYPE OF\s+\((.*?)\);", raw_entity_str, re.DOTALL)
+                    entity["isabstract"] = False
+                    supertypeof,subtypeof = match.groups()
+                    entity["supertype"] = subtypeof.upper()
+                    supertypeof = re.sub('\s', '', supertypeof)
+                    supertypeofmatch = re.search(".*\((.*?)\)", supertypeof, re.DOTALL)
+                    subtypes = supertypeofmatch.groups()[0].upper().split(',')
+                    entity["subtypes"] = subtypes
+            elif is_subtype:
+                # subtype of ... ;
+                subtypeofmatch = re.search(".*SUBTYPE OF \((.*?)\);", raw_entity_str)
+                entity["supertype"] = subtypeofmatch.groups()[0].upper() if subtypeofmatch else None
 
             # find the shortest string matched from the end of the entity type header to the
             # first occurence of a NO_ATTR string (when it occurs on a new line)
-            inner_str = re.search(";(.*?)$", raw_entity_str, re.DOTALL).groups()[0]            
+            inner_str = re.search(";(.*?)$", raw_entity_str, re.DOTALL).groups()[0]
 
             attrs_str = min([inner_str.partition("\r\n "+a)[0] for a in self.NO_ATTR])
             attrs = []
@@ -174,7 +206,7 @@ class IfcSchema:
 
     def getAttributes(self, name):
         """
-        Get all attributes af an entity, including supertypes
+        Get all attributes of an entity, including supertypes
         """
         ent = self.entities[name]
 
