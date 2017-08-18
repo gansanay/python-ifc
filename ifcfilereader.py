@@ -2,6 +2,7 @@
 
 import re
 from ifcschemareader import IfcSchema
+from builtins import str
 
 IFCLINE_RE = re.compile("#(\d+)[ ]?=[ ]?(.*?)\((.*)\);[\\r]?$")
 
@@ -23,6 +24,8 @@ class IfcFile:
         self.file.close()
     
     def getEntityById(self, id):
+        if isinstance(id, str) and id.startswith('#'):
+            return self.entById.get(int(id[1:]), None)
         return self.entById.get(id, None)
     
     def getEntitiesByName(self, name):
