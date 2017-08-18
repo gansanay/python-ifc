@@ -2,7 +2,7 @@
 
 import re
 from ifcschemareader import IfcSchema
-from builtins import str
+from past.builtins import basestring
 
 IFCLINE_RE = re.compile("#(\d+)[ ]?=[ ]?(.*?)\((.*)\);[\\r]?$")
 
@@ -11,7 +11,7 @@ class IfcFile:
     Parses an ifc file given by filename, entities can be retrieved by name and id
     The whole file is stored in a dictionary (in memory)
     """
-    
+
     entsById = {}
     entsByName = {}
 
@@ -22,12 +22,12 @@ class IfcFile:
         self.entById, self.entsByName = self.read()
         print "Parsed from file %s: %s entities" % (self.filename, len(self.entById))
         self.file.close()
-    
+
     def getEntityById(self, id):
-        if isinstance(id, str) and id.startswith('#'):
+        if isinstance(id, basestring) and id.startswith('#'):
             return self.entById.get(int(id[1:]), None)
         return self.entById.get(id, None)
-    
+
     def getEntitiesByName(self, name):
         return self.entsByName.get(name, None)
 
@@ -61,7 +61,7 @@ class IfcFile:
 
         for name in entsByName.keys():
             entsByName[name] = list(set(entsByName[name]))
-            
+
         if benchmark:
             now = time.time()
             print('done parsing {} lines after {} seconds'.format(lines_done, now-first))
@@ -69,14 +69,14 @@ class IfcFile:
 
     def parseLine(self, line):
         """
-        Parse a line 
-        """ 
+        Parse a line
+        """
         m = IFCLINE_RE.search(line)  # id,name,attrs
         if m:
             id, name, attrs = m.groups()
         else:
             return False
-        
+
         return {"id": id, "name": name, "attributes": self.parseAttributes(name, attrs)}
 
     def parseAttributes(self, ent_name, attrs_str):
@@ -85,20 +85,20 @@ class IfcFile:
         """
         parts = []
         lastpos = 0
-        
+
         while lastpos < len(attrs_str):
             newpos = self.nextString(attrs_str, lastpos)
             parts.extend(self.parseAttribute(attrs_str[lastpos:newpos-1]))
             lastpos = newpos
-        
+
         schema_attributes = self.schema.getAttributes(ent_name)
 
 #        assert len(schema_attributes) == len(parts), \
 #            "Expected %s attributes, got %s (entity: %s" % \
 #            (len(schema_attributes), len(parts), ent_name)
-        
+
         attribute_names = [a[0] for a in schema_attributes]
-        
+
         return dict(zip(attribute_names, parts))
 
     def parseAttribute(self, attr_str):
@@ -124,7 +124,7 @@ class IfcFile:
                         parts.append(s) # ref, enum or other
 
             lastpos = newpos
-        
+
         return parts
 
 
@@ -147,8 +147,8 @@ class IfcFile:
                 quotes = 1
             elif c =="\'" and quotes == 1:
                 quotes = 0
-            
-        return len(s)+1                  
+
+        return len(s)+1
 
 
 
@@ -164,6 +164,6 @@ if __name__ == "__main__":
     ifcfile = IfcFile("testdata/AC11-FZK-Haus-IFC.ifc", schema)
     t2 = time.time()
     print "Loading file took: %s s \n" % ((t2-t1))
-    
+
     print ifcfile.getEntityById(233), "\n"
     print ifcfile.getEntityById(216), "\n"
