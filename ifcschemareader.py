@@ -215,6 +215,8 @@ class IfcSchema:
             this_ent_attrs = copy.copy(ent["attributes"])
             this_ent_attrs.reverse()
             attrs.extend(this_ent_attrs)
+            if not 'supertype' in ent:
+                break
             ent = self.entities.get(ent["supertype"], None)
 
         attrs.reverse()
