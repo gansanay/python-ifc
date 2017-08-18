@@ -28,20 +28,40 @@ class IfcFile:
     def getEntitiesByName(self, name):
         return self.entsByName.get(name, None)
 
-    def read(self):
+    def read(self, benchmark=True):
         """
         Returns 2 dictionaries, entById and entsByName
         """
+        if benchmark:
+            import time
+            first = last = time.time()
+            lines_done = 0
         entById = {}
         entsByName = {}
         for line in self.file:
             e = self.parseLine(line)
             if e:
-                entById[int(e["id"])] = e
-                ids = e.get(e["name"],[])
-                ids.append(e["id"])
-                entsByName[e["name"]] = list(set(ids))
-                
+                name = e['name']
+                id = int(e['id'])
+                entById[id] = e
+                if name in entsByName:
+                    entsByName[name].append(id)
+                else:
+                    entsByName[name] = [id]
+            if benchmark:
+                now = time.time()
+                if now - last > 5:
+                    print('{}: {} lines parsed {}/sec'.format(
+                        int(now - first), lines_done, lines_done/(now-first)))
+                    last = now
+                lines_done += 1
+
+        for name in entsByName.keys():
+            entsByName[name] = list(set(entsByName[name]))
+            
+        if benchmark:
+            now = time.time()
+            print('done parsing {} lines after {} seconds'.format(lines_done, now-first))
         return [entById, entsByName]
 
     def parseLine(self, line):
