@@ -1,0 +1,6 @@
+- documentation (how to get items in your building etc.)
+- create python-project and make installable as lib (setup.py)
+- create tests (and tox for python3)
+- python3 comp. (use print with baces etc.)
+- better logging
+- benchmarking-capabilities (+multi-core support)
